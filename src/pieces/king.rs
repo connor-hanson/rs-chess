@@ -1,41 +1,41 @@
-use crate::pieces::piece::{Piece, mask_file};
+use crate::pieces::piece::{Piece, Color};
 use crate::board::{Board, File};
+use crate::utils::{mask_file};
 
 pub struct King {}
 
 impl Piece for King {
-    fn _all_moves_unbound(&self, piece_pos: u64, pos: Vec<u32>) -> u64 {
+    fn all_moves_unbound(&self, piece_pos: u64) -> u64 {
+        let offsets: [u32; 4] = [1, 7, 8, 9];
         let mut moves: u64 = piece_pos;
-        for offset in pos {
+        for offset in offsets {
             moves += piece_pos.checked_shr(offset).unwrap();
             moves += piece_pos.checked_shl(offset).unwrap();
         }
         return moves;
     }
 
-    fn all_moves(&self, current_pos: u64) -> u64 {
+    fn all_moves(&self, current_pos: u64, color: Color) -> u64 {
         let mut res = !current_pos;
-        let k = current_pos;
-        res &= self._all_moves_unbound(
-            k, 
-            vec![7, 8, 9, 1],
-        );
+        res &= self.all_moves_unbound( current_pos);
 
-        let tz = k.trailing_zeros();
+        let tz = current_pos.trailing_zeros();
         if tz % 8 == 7 {
-            res ^= res & mask_file(File::A);
+            res ^= res & mask_file(File::A); // XOR
         } else if tz % 8 == 0 {
             res ^= res & mask_file(File::H);
         }
-
-        // return self._mask_rank(3) | self._mask_file(BoardFile::H);
-
         return res;
     }
 
     fn legal_moves(&self, board: Board) -> u64 {
         return 1;
     }
+}
+
+#[cfg(test)]
+mod test {
+
 }
 
 
