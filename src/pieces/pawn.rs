@@ -8,16 +8,7 @@ use crate::utils::{mask_rank, mask_file};
 pub struct Pawn {}
 
 impl Piece for Pawn {
-    /// unused for Pawns, since they can only move forward so need color param
-    fn all_moves_unbound(&self, piece_pos: u64) -> u64 {
-        panic!("pawns require a color to compute move");
-    }
-
-    fn all_moves(&self, curr_pos: u64, color: Color) -> u64 {
-        return 1;
-    }
-
-    fn legal_moves(&self, board: Board) -> u64 {
+    fn all_moves(&self, curr_pos: u64, color: &Color) -> u64 {
         return 1;
     }
 }
@@ -148,8 +139,11 @@ mod tests {
         bdiff(p.all_moves_unbound(tile_u64("d1"), &Color::BLACK), 0);
         bdiff(p.all_moves_unbound(tile_u64("h8"), &Color::WHITE), 0);
         bdiff(p.all_moves_unbound(tile_u64("d1"), &Color::WHITE), 0);
-        
     }
 
+    #[test]
+    fn test_many_pawns() {
+
+    }
 
 }

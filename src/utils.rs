@@ -18,6 +18,9 @@ pub fn mask_file(f: File) -> u64 {
     return res;
 }
 
+/// Convert a tile to its u64 representation
+/// 
+/// Ex: tile_u64(A1) -> 0x0000000000000008
 pub fn tile_u64(t: &str) -> u64 {
     let tile: String = t.to_string();
     if tile.len() != 2 {
@@ -34,6 +37,9 @@ pub fn tile_u64(t: &str) -> u64 {
     return 1 << file_num << ((rank - 1) * 8);
 }
 
+/// Returns the u64 board representation of a list of tiles
+/// 
+/// Ex: tile_list_u64(vec!["a1", "H8", "d4"]) -> 0x8000000008000001
 pub fn tile_list_u64(t: Vec<&str>) -> u64 {
     let mut res: u64 = 0;
     for i in t {

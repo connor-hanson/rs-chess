@@ -5,17 +5,7 @@ use crate::utils::{mask_file};
 pub struct King {}
 
 impl Piece for King {
-    fn all_moves_unbound(&self, piece_pos: u64) -> u64 {
-        let offsets: [u32; 4] = [1, 7, 8, 9];
-        let mut moves: u64 = piece_pos;
-        for offset in offsets {
-            moves += piece_pos.checked_shr(offset).unwrap();
-            moves += piece_pos.checked_shl(offset).unwrap();
-        }
-        return moves;
-    }
-
-    fn all_moves(&self, current_pos: u64, color: Color) -> u64 {
+    fn all_moves(&self, current_pos: u64, color: &Color) -> u64 {
         let mut res = !current_pos;
         res &= self.all_moves_unbound( current_pos);
 
@@ -27,9 +17,17 @@ impl Piece for King {
         }
         return res;
     }
+}
 
-    fn legal_moves(&self, board: Board) -> u64 {
-        return 1;
+impl King {
+    fn all_moves_unbound(&self, piece_pos: u64) -> u64 {
+        let offsets: [u32; 4] = [1, 7, 8, 9];
+        let mut moves: u64 = piece_pos;
+        for offset in offsets {
+            moves += piece_pos.checked_shr(offset).unwrap();
+            moves += piece_pos.checked_shl(offset).unwrap();
+        }
+        return moves;
     }
 }
 
