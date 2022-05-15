@@ -1,14 +1,21 @@
 use crate::pieces::piece::{
     Piece, 
-    Color,
 };
-use crate::board::{Board, File};
+use crate::game::{Board, File, Color};
 use crate::utils::{mask_rank, mask_file};
 
 pub struct Pawn {}
 
 impl Piece for Pawn {
-    fn all_moves(&self, curr_pos: u64, color: &Color) -> u64 {
+    fn all_moves(&self, board: &Board, color: &Color) -> u64 {
+        return 1;
+    }
+
+    fn all_moves_pseudolegal_no_blocks(position: u64) -> u64 {
+        return 1;
+    }
+
+    fn get_points(&self) -> i32 {
         return 1;
     }
 }
@@ -16,7 +23,7 @@ impl Piece for Pawn {
 impl Pawn {
 
     // forward, attack, ...
-    fn all_moves_unbound(&self, piece_pos: u64, color: &Color) -> u64 {
+    pub fn all_moves_unbound(&self, piece_pos: u64, color: &Color) -> u64 {
         // compute avail down moves
         // loop through BB - skipping 1st and last rank since pawns cant exist there
         let mut res: u64 = 0;
@@ -31,14 +38,28 @@ impl Pawn {
                 res += tmp >> 8;
             }
 
-            res += self.attacks_east(tmp, color);
-            res += self.attacks_west(tmp, color);
+            // res += self.attacks_east(tmp, color);
+            // res += self.attacks_west(tmp, color);
 
             rank_mask = rank_mask << 8
         }
 
         // append any fast moves available
         res += self.fast_moves(piece_pos, color);
+        return res;
+    }
+
+    pub fn all_attacks(&self, piece_pos: u64, color: &Color) -> u64 {
+        let mut res: u64 = 0;
+        let mut rank_mask = mask_rank(2);
+
+        for _i in 2..8 {
+            let tmp: u64 = rank_mask & piece_pos;
+            res += self.attacks_east(tmp, color);
+            res += self.attacks_west(tmp, color);
+            rank_mask = rank_mask << 8;
+        }
+
         return res;
     }
 

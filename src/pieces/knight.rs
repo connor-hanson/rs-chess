@@ -1,20 +1,27 @@
 use crate::pieces::piece::{
     Piece, 
-    Color,
 };
-use crate::board::{Board, File};
+use crate::game::{Board, File, Color};
 use crate::utils::{mask_rank, mask_file};
 
 pub struct Knight{}
 
 impl Piece for Knight {
-    fn all_moves(&self, curr_pos: u64, color: &Color) -> u64 {
+    fn all_moves(&self, board: &Board, color: &Color) -> u64 {
         return 1;
+    }
+
+    fn all_moves_pseudolegal_no_blocks(position: u64) -> u64 {
+        return 1;
+    }
+    
+    fn get_points(&self) -> i32 {
+        return 3;
     }
 }
 
 impl Knight {
-    fn all_moves_unbound(&self, curr_pos: u64) -> u64 {
+    pub fn all_moves_unbound(&self, curr_pos: u64) -> u64 {
         let mut res: u64 = 0;
 
         res |= self.attacks_east(curr_pos);

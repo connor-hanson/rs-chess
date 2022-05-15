@@ -1,10 +1,17 @@
 
 use std::str::Chars;
-use super::board::File;
+use crate::pieces::piece::Piece;
+use super::game::File;
 
 pub fn mask_rank(r: u32) -> u64 {
+    if r == 8 {
+        return 0xff00000000000000;
+    }
     let res: u64 = 255; // 2^8 - 1
-    return res.checked_shl(8 * (r - 1)).unwrap();
+    return match res.checked_shl(8 * (r - 1)) {
+        None => panic!("masking rank {} failed!", r), 
+        Some(shifted_u64) => shifted_u64
+    };
 }
 
 // up-down
@@ -49,15 +56,20 @@ pub fn tile_list_u64(t: Vec<&str>) -> u64 {
     return res;
 }
 
-fn print_moves(b: u64) {
+pub fn print_moves(brd: &u64) {
     let mut mask: u64 = 0xff00000000000000;
     for i in (0..8).rev() {
-        println!("{:08b}", (((b & mask) >> (8 * i)).reverse_bits()) >> 56);
+        println!("{:08b}", (((*brd & mask) >> (8 * i)).reverse_bits()) >> 56);
         mask = mask >> 8;
     }
-    println!("{:064b}", b);
+    println!("{:064b}", brd);
     println!("");
 }
+
+// fn gen_move_set(p: Piece) -> [u64; 64]{
+//     // 
+//     return;
+// }
 
 #[cfg(test)]
 mod test {

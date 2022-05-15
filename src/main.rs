@@ -1,27 +1,76 @@
 mod pieces;
-use pieces::{pawn, king, piece::{Piece, Color}};
+use pieces::{pawn, king, knight, piece::{Piece}};
 
+mod constants;
+use constants::attack_sets::AttackSets;
 
-mod board;
-use board::{Board};
+mod game;
+use game::{Board, Color};
 
 mod utils;
-use utils::{tile_u64};
+use utils::{tile_u64, print_moves};
 
 
 fn main() {
-    let board = Board {
-        w_king:  utils::tile_u64("e1"),
-        bb_king: utils::tile_u64("e8"),
-        b_pawns: 0x00ff000000000000,
-        w_pawns: 0x000000000000ff00,
-    };
+    // let board = Board {
+    //     w_king:  utils::tile_u64("e1"),
+    //     bb_king: utils::tile_u64("e8"),
+    //     b_pawns: 0x00ff000000000000,
+    //     w_pawns: 0x000000000000ff00,
+    // };
 
-    let king = king::King{};
-    let pawn = pawn::Pawn{};
+    // let king = king::King{};
+    // let pawn = pawn::Pawn{};
     // print_moves(pawn.attacks_west(tile_u64("a4"), Color::WHITE));
     // print_moves(king.all_moves(board.w_king, Color::WHITE));
     // print_moves(king.all_moves(board.bb_king, Color::BLACK));
+
+    let mut all_attacks: AttackSets = AttackSets::default();
+    init_move_sets(&mut all_attacks);
+
+    print_moves(&all_attacks.king_attacks[7])
+}
+
+fn init_move_sets(empty_attack_sets: &mut AttackSets) {
+    let each_tile: [u64; 64] = Board::each_tile();
+
+    // precompute the easy ones
+    precompute_knight(each_tile, &mut empty_attack_sets.knight_attacks);
+    precompute_king(each_tile, &mut empty_attack_sets.king_attacks);
+    precompute_pawns(each_tile, empty_attack_sets);
+
+    // precompute sliding pieces
+}
+
+fn precompute_knight(each_tile: [u64; 64], knight_attacks: &mut [u64; 64]) {   
+    let mut count: usize = 0;
+    let k = knight::Knight{};
+    for t in each_tile {
+        knight_attacks[count] = k.all_moves_unbound(t);
+        count += 1;
+    }
+}
+
+fn precompute_king(each_tile: [u64; 64], king_attacks: &mut [u64; 64]) {
+    let mut count: usize = 0;
+    let k = king::King{};
+    for t in each_tile {
+        king_attacks[count] = k.all_moves_unbound(t);
+        count += 1;
+    }
+}
+
+fn precompute_pawns(each_tile: [u64; 64], empty_attack_sets: &mut AttackSets) {
+    let mut count = 0;
+    let p = pawn::Pawn{};
+    for t in each_tile {
+        empty_attack_sets.w_pawn_moves[count] = p.all_moves_unbound(t, &Color::WHITE);
+        empty_attack_sets.w_pawn_attacks[count] = p.all_attacks(t, &Color::WHITE);
+
+        empty_attack_sets.b_pawn_moves[count] = p.all_moves_unbound(t, &Color::BLACK);
+        empty_attack_sets.b_pawn_attacks[count] = p.all_attacks(t, &Color::BLACK);
+        count += 1;
+    }
 }
 
 #[cfg(test)]
