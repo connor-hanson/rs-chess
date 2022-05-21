@@ -19,9 +19,11 @@
 pub struct AttackSets {
     pub rook_attacks: [Vec<u64>; 64],
     pub rook_offsets: [u64; 64],
+    pub rook_magics: [u64; 64],
 
     pub bishop_attacks: [Vec<u64>; 64],
     pub bishop_offsets: [u64; 64],
+    pub bishop_magics: [u64; 64],
 
     pub knight_attacks: [u64; 64],
     pub b_pawn_moves: [u64; 64],
@@ -111,6 +113,7 @@ impl Default for AttackSets {
                 11, 10, 10, 10, 10, 10, 10, 11, // a7 -> h7
                 12, 11, 11, 11, 11, 11, 11, 12, // a8 -> h8
             ],
+            rook_magics: [0; 64],
 
             bishop_attacks: [
                 vec![0; 64], // a1
@@ -188,6 +191,7 @@ impl Default for AttackSets {
                 5, 5, 5, 5, 5, 5, 5, 5,
                 6, 5, 5, 5, 5, 5, 5, 5,
             ],
+            bishop_magics: [0; 64],
     
             knight_attacks: [0; 64],
             b_pawn_moves: [0; 64],

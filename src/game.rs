@@ -1,3 +1,5 @@
+use std::io::{Error, ErrorKind};
+
 use crate::utils::{tile_u64, tile_list_u64, mask_rank};
 
 pub struct Board {
@@ -57,7 +59,7 @@ impl Board {
         let mut count: usize = 0;
         for r in Rank::all() {
             for f in File::all() {
-                each_tile[count] = f.mask() & r;
+                each_tile[count] = f.mask() & r.mask();
                 count += 1;
             }
         }
@@ -71,6 +73,7 @@ pub enum Color {
     WHITE, BLACK
 }
 
+#[derive(PartialEq)]
 pub enum File {
     A, B, C, D, E, F, G, H
 }
@@ -114,28 +117,57 @@ impl File {
             File::H => 0x8080808080808080,
         }
     }
+
+    pub fn file_from_tile(tile: u64) -> Result<File, String> {
+        for file in File::all() {
+            if (file.mask() & tile) != 0 {
+                return Ok(file);
+            }
+        }
+
+        return Err("No file could be found".to_string());
+    }
 }
 
-pub struct Rank {}
+#[derive(PartialEq)]
+pub enum Rank {
+    ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT
+}
 
 impl Rank {
-
-    const ALL: [u64; 8] = [ // 1 -> 8
-        0x00000000000000ff,
-        0x000000000000ff00,
-        0x0000000000ff0000,
-        0x00000000ff000000,
-        0x000000ff00000000,
-        0x0000ff0000000000,
-        0x00ff000000000000,
-        0xff00000000000000,
-    ];
-
-    pub fn valueof(rank_idx: usize) -> u64 {
-        return Rank::ALL[rank_idx - 1];
+    pub fn all() -> [Rank; 8] {
+        return [
+            Rank::ONE,
+            Rank::TWO,
+            Rank::THREE,
+            Rank::FOUR,
+            Rank::FIVE,
+            Rank::SIX,
+            Rank::SEVEN, 
+            Rank::EIGHT,
+        ];
     }
 
-    pub fn all() -> [u64; 8] {
-        return Rank::ALL;
+    pub fn mask(&self) -> u64 {
+        match *self {
+            Rank::ONE => 0x00000000000000ff,
+            Rank::TWO => 0x000000000000ff00,
+            Rank::THREE => 0x0000000000ff0000,
+            Rank::FOUR => 0x00000000ff000000,
+            Rank::FIVE => 0x000000ff00000000,
+            Rank::SIX => 0x0000ff0000000000,
+            Rank::SEVEN => 0x00ff000000000000,
+            Rank::EIGHT => 0xff00000000000000,
+        }
+    }
+
+    pub fn rank_from_tile(tile: u64) -> Result<Rank, String> {
+        for rank in Rank::all() {
+            if (rank.mask() & tile) != 0 {
+                return Ok(rank);
+            }
+        }
+
+        return Err("No rank could be found".to_string());
     }
 }

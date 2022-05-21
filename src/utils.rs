@@ -3,6 +3,8 @@ use std::str::Chars;
 use crate::pieces::piece::Piece;
 use super::game::File;
 
+
+// TODO - Remove
 pub fn mask_rank(r: u32) -> u64 {
     if r == 8 {
         return 0xff00000000000000;
@@ -15,6 +17,7 @@ pub fn mask_rank(r: u32) -> u64 {
 }
 
 // up-down
+// TODO - Remove
 pub fn mask_file(f: File) -> u64 {
     let mut res: u64 = 0;
     let exp_val: u64 = u64::pow(2, f.value());

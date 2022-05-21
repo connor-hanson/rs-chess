@@ -7,6 +7,9 @@ use constants::attack_sets::AttackSets;
 mod game;
 use game::{Board, Color};
 
+mod magics;
+use magics::rook_all_occupancies;
+
 mod utils;
 use utils::{tile_u64, print_moves};
 
@@ -28,7 +31,13 @@ fn main() {
     let mut all_attacks: AttackSets = AttackSets::default();
     init_move_sets(&mut all_attacks);
 
-    print_moves(&all_attacks.king_attacks[7])
+    //print_moves(&all_attacks.king_attacks[7])
+
+    let precomputed = rook_all_occupancies();
+    for i in precomputed {
+        print_moves(&i);
+        println!("\n")
+    }
 }
 
 fn init_move_sets(empty_attack_sets: &mut AttackSets) {
