@@ -1,5 +1,3 @@
-use std::io::{Error, ErrorKind};
-
 use crate::utils::{tile_u64, tile_list_u64, mask_rank};
 
 pub struct Board {

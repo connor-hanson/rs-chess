@@ -5,10 +5,10 @@ mod constants;
 use constants::attack_sets::AttackSets;
 
 mod game;
-use game::{Board, Color};
+use game::{Board, Color, Rank, File};
 
 mod magics;
-use magics::rook_all_occupancies;
+use magics::{find_magics, SlidingMagic, rook_all_occupancies};
 
 mod utils;
 use utils::{tile_u64, print_moves};
@@ -31,13 +31,14 @@ fn main() {
     let mut all_attacks: AttackSets = AttackSets::default();
     init_move_sets(&mut all_attacks);
 
-    //print_moves(&all_attacks.king_attacks[7])
+    let magicmoves: SlidingMagic = find_magics();
+    // print_moves(&all_attacks.king_attacks[7])
 
-    let precomputed = rook_all_occupancies();
-    for i in precomputed {
-        print_moves(&i);
-        println!("\n")
-    }
+    // let precomputed = rook_all_occupancies(tile_u64("A3"), Rank::ONE.mask(), File::C.mask());
+    // for i in precomputed {
+    //     print_moves(&i);
+    //     println!("\n")
+    // }
 }
 
 fn init_move_sets(empty_attack_sets: &mut AttackSets) {
