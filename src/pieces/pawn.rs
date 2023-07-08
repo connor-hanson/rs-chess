@@ -1,8 +1,10 @@
+use std::io::{Error};
+
 use crate::pieces::piece::{
     Piece, 
 };
 use crate::game::{Board, File, Color};
-use crate::utils::{mask_rank, mask_file};
+use crate::utils::{mask_rank, mask_file, print_moves};
 
 pub struct Pawn {}
 
@@ -22,44 +24,47 @@ impl Piece for Pawn {
 
 impl Pawn {
 
-    // forward, attack, ...
+    // todo - return results
+    fn _validate_pawn_positions(&self, pawns: u64, color: &Color) -> u64 {
+        let _pawns_on_first: Result<u64, Error> = match *color == Color::WHITE && (pawns & mask_rank(1) != 0) {
+            true => panic!("Illegal position: white pawns on first rank"),
+            false => Ok(pawns)
+        };
+
+        let _pawns_on_eighth: Result<u64, Error> = match *color == Color::BLACK && (pawns & mask_rank(8) != 0) {
+            true => panic!("Illegal position: black pawns on eighth rank"),
+            false => Ok(pawns)
+        };
+
+        return pawns;
+    }
+
+    /// forward, attack, ...
     pub fn all_moves_unbound(&self, piece_pos: u64, color: &Color) -> u64 {
         // compute avail down moves
-        // loop through BB - skipping 1st and last rank since pawns cant exist there
+        // loop through BitBoard - skipping 1st and last rank since pawns cant exist there
         let mut res: u64 = 0;
 
-        let mut rank_mask = mask_rank(2);
-        for _i in 2..8 {
-            let tmp: u64 = rank_mask & piece_pos;
+        res = res & !mask_rank(1) & !mask_rank(8);
 
-            if *color == Color::WHITE {
-                res += tmp << 8;
-            } else {
-                res += tmp >> 8;
-            }
 
-            // res += self.attacks_east(tmp, color);
-            // res += self.attacks_west(tmp, color);
-
-            rank_mask = rank_mask << 8
-        }
-
-        // append any fast moves available
+        res += self.one_step_forward(piece_pos, color);
         res += self.fast_moves(piece_pos, color);
+        res += self.all_attacks(piece_pos, color);
         return res;
     }
 
-    pub fn all_attacks(&self, piece_pos: u64, color: &Color) -> u64 {
-        let mut res: u64 = 0;
-        let mut rank_mask = mask_rank(2);
-
-        for _i in 2..8 {
-            let tmp: u64 = rank_mask & piece_pos;
-            res += self.attacks_east(tmp, color);
-            res += self.attacks_west(tmp, color);
-            rank_mask = rank_mask << 8;
+    fn one_step_forward(&self, pawns: u64, color: &Color) -> u64 {
+        if *color == Color::WHITE {
+            return pawns << 8;
         }
+        return pawns >> 8;
+    }
 
+    pub fn all_attacks(&self, pawns: u64, color: &Color) -> u64 {
+        let mut res: u64 = 0;
+        res += self.pawn_attack(pawns, color, true);
+        res += self.pawn_attack(pawns, color, false);
         return res;
     }
 
@@ -70,20 +75,15 @@ impl Pawn {
         return (piece_pos & mask_rank(7)) >> 16;
     }
 
-    fn attacks_east(&self, masked_rank: u64, color: &Color) -> u64 {
-        let res = !mask_file(File::A); // invert it
-        if *color == Color::WHITE {
-            return (masked_rank << 9) & res;
-        } 
-        return (masked_rank >> 7) & res;
-    }
+    fn pawn_attack(&self, masked_rank: u64, color: &Color, is_west_attack: bool) -> u64 {
+        let valid_attack_squares = if is_west_attack {!mask_file(File::H)} else {!mask_file(File::A)};
 
-    fn attacks_west(&self, masked_rank: u64, color: &Color) -> u64 {
-        let res = !mask_file(File::H);
         if *color == Color::WHITE {
-            return (masked_rank << 7) & res;
+            let shift = if is_west_attack { 7 } else { 9 };
+            return (masked_rank << shift) & valid_attack_squares;
         }
-        return (masked_rank >> 9) & res;
+        let shift = if is_west_attack { 9 } else { 7 };
+        return (masked_rank >> shift) & valid_attack_squares;
     }
 }
 
@@ -94,37 +94,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_single_pawn_attacks_unbound() {
+    fn black_test_west_attacks() {
         let p = Pawn{};
-
-        // try borders
-        bdiff(p.attacks_west(tile_u64("a4"), &Color::WHITE), 0);
-        bdiff(p.attacks_east(tile_u64("h2"), &Color::WHITE), 0);
-        bdiff(p.attacks_west(tile_u64("a4"), &Color::BLACK), 0);
-        bdiff(p.attacks_east(tile_u64("h2"), &Color::BLACK), 0);
-
-        // test middle
-        bdiff(p.attacks_west(tile_u64("d4"), &Color::WHITE), tile_u64("c5"));
-        bdiff(p.attacks_east(tile_u64("g4"), &Color::WHITE), tile_u64("h5"));
-        bdiff(p.attacks_west(tile_u64("d4"), &Color::BLACK), tile_u64("c3"));
-        bdiff(p.attacks_east(tile_u64("g4"), &Color::BLACK), tile_u64("h3"));
-
-        // // should show nothing if bad rank
-        // _cmp( p._attacks_west(tile_u64("c8"), Color::WHITE), 0);
-        // _cmp(p._attacks_east(tile_u64("h1"), Color:: WHITE), 0);
-        // _cmp(p._attacks_west(tile_u64("f8"), Color::BLACK), 0);
-        // _cmp(p._attacks_east(tile_u64("f1"), Color::BLACK), 0);
+        bdiff(p.pawn_attack(tile_u64("a4"), &Color::BLACK, true), 0);
+        bdiff(p.pawn_attack(tile_u64("d4"), &Color::BLACK, true), tile_u64("c3"));
     }
 
     #[test]
-    fn test_fast_moves() {
+    fn black_test_east_attacks() {
         let p = Pawn{};
+        bdiff(p.pawn_attack(tile_u64("h2"), &Color::BLACK, false), 0);
+        bdiff(p.pawn_attack(tile_u64("g4"), &Color::BLACK, false), tile_u64("h3"));
+    }
 
-        // white
-        bdiff(p.fast_moves(tile_u64("a2"), &Color::WHITE), tile_u64("a4"));
-        bdiff(p.fast_moves(tile_u64("c3"), &Color::WHITE), 0);
-        bdiff(p.fast_moves(tile_u64("g7"), &Color::WHITE), 0);
+    #[test]
+    fn white_test_west_attacks() {
+        let p = Pawn{};
+        bdiff(p.pawn_attack(tile_u64("a4"), &Color::WHITE, true), 0);
+        bdiff(p.pawn_attack(tile_u64("d4"), &Color::WHITE, true), tile_u64("c5"));
+    }
 
+    #[test]
+    fn white_test_east_attacks() {
+        let p = Pawn{};
+        bdiff(p.pawn_attack(tile_u64("h2"), &Color::WHITE, false), 0);
+        bdiff(p.pawn_attack(tile_u64("g4"), &Color::WHITE, false), tile_u64("h5"));
+    }
+
+    #[test]
+    fn black_test_fast_moves() {
+        let p = Pawn{};
         // black
         bdiff(p.fast_moves(tile_u64("a2"), &Color::BLACK), 0);
         bdiff(p.fast_moves(tile_u64("g6"), &Color::BLACK), 0);
@@ -132,10 +131,17 @@ mod tests {
     }
 
     #[test]
-    fn test_all_moves_unbound(){
+    fn white_test_fast_moves() {
         let p = Pawn{};
 
-        // White in bounds
+        bdiff(p.fast_moves(tile_u64("a2"), &Color::WHITE), tile_u64("a4"));
+        bdiff(p.fast_moves(tile_u64("c3"), &Color::WHITE), 0);
+        bdiff(p.fast_moves(tile_u64("g7"), &Color::WHITE), 0);
+    }
+
+    #[test]
+    fn white_test_in_bounds() {
+        let p = Pawn{};
         bdiff(p.all_moves_unbound(tile_u64("a2"), &Color::WHITE), 
             tile_list_u64(vec!["a3", "a4", "b3"]));
 
@@ -144,8 +150,11 @@ mod tests {
 
         bdiff(p.all_moves_unbound(tile_u64("h3"), &Color::WHITE),
             tile_list_u64(vec!["g4", "h4"]));
+    }
 
-        // Black in bounds
+    #[test]
+    fn black_test_in_bounds() {
+        let p = Pawn{};
         bdiff(p.all_moves_unbound(tile_u64("h7"), &Color::BLACK),
             tile_list_u64(vec!["h6", "h5", "g6"]));
         
@@ -154,17 +163,5 @@ mod tests {
 
         bdiff(p.all_moves_unbound(tile_u64("a3"), &Color::BLACK),
             tile_list_u64(vec!["a2", "b2"]));
-
-        // OOB
-        bdiff(p.all_moves_unbound(tile_u64("h8"), &Color::BLACK), 0);
-        bdiff(p.all_moves_unbound(tile_u64("d1"), &Color::BLACK), 0);
-        bdiff(p.all_moves_unbound(tile_u64("h8"), &Color::WHITE), 0);
-        bdiff(p.all_moves_unbound(tile_u64("d1"), &Color::WHITE), 0);
     }
-
-    #[test]
-    fn test_many_pawns() {
-
-    }
-
 }

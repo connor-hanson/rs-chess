@@ -1,3 +1,5 @@
+use std::env;
+
 mod pieces;
 use pieces::{pawn, king, knight, piece::{Piece}};
 
@@ -7,14 +9,19 @@ use constants::attack_sets::AttackSets;
 mod game;
 use game::{Board, Color, Rank, File};
 
-mod magics;
-use magics::{find_magics, SlidingMagic, rook_all_occupancies};
-
 mod utils;
 use utils::{tile_u64, print_moves};
 
+mod magic;
+use magic::magic::{
+    find_magics,
+    SlidingMagic,
+};
+
 
 fn main() {
+
+    env::set_var("RUST_BACKTRACE", "1");
     // let board = Board {
     //     w_king:  utils::tile_u64("e1"),
     //     bb_king: utils::tile_u64("e8"),
@@ -90,13 +97,16 @@ pub mod test_util {
         let mut formatted_str: String = "".to_string();
         let mut mask: u64 = 0xff00000000000000;
         for i in (0..8).rev() {
-            formatted_str.push_str(&format!("{:08b}\n", (((b & mask) >> (8*i)).reverse_bits() >> 56) ));
+            formatted_str.push_str(&format!("{}|{:08b}\n", i+1, (((b & mask) >> (8*i)).reverse_bits() >> 56) ));
             mask = mask >> 8;
         }
+        formatted_str.push_str("----------\n");
+        formatted_str.push_str(" |ABCDEFGH\n");
 
         return formatted_str;
     }
 
+    /// board diff
     pub fn bdiff(b: u64, expected: u64) {
         return assert_eq!(expected, b, "\nexpected: \n{}\nreceived:\n{}", board_string(expected), board_string(b));
     }

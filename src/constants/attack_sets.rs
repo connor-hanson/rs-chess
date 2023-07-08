@@ -192,5 +192,3 @@ impl Default for AttackSets {
       
     }
 }
-
-// const emme is the best and most interesting person to exist :)

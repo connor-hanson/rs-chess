@@ -1,121 +1,39 @@
-use std::hash::Hash;
 use std::vec;
 
 use crate::game::{Rank, File, Board};
 use crate::utils::print_moves;
 
+use crate::magic::magic_helpers::{
+    n_higher_bits,
+    n_lower_bits,
+    rook_magics_mib,
+    search_for_magic_without_conflicts
+};
+
+use crate::magic::constants::{
+    ROOK_OFFSETS,
+    DB_SIZE_FACTOR,
+};
+
 use std::collections::HashSet;
-use rand::Rng;
 
-
-const DB_SIZE_FACTOR: u32 = 2;
-
-struct RookMagic {
-    offsets: [u32; 64],
-    magics: [u64; 64],
-    attacks: Vec<Vec<u64>>,
+pub struct RookMagic {
+    pub offsets: [u32; 64],
+    pub magics: [u64; 64],
+    pub attacks: Vec<Vec<u64>>,
 }
 
-pub struct SlidingMagic {
-    rook_offsets: [u32; 64],
-    rook_magics: [u64; 64],
-    rook_attacks: Vec<Vec<u64>>,
-}
-
-
-const ROOK_OFFSETS: [u32; 64] = [
-    12, 11, 11, 11, 11, 11, 11, 12, // a1 -> h1
-    11, 10, 10, 10, 10, 10, 10, 11, // a2 -> h2
-    11, 10, 10, 10, 10, 10, 10, 11, // a3 -> h3
-    11, 10, 10, 10, 10, 10, 10, 11, // a4 -> h4
-    11, 10, 10, 10, 10, 10, 10, 11, // a5 -> h5
-    11, 10, 10, 10, 10, 10, 10, 11, // a6 -> h6
-    11, 10, 10, 10, 10, 10, 10, 11, // a7 -> h7
-    12, 11, 11, 11, 11, 11, 11, 12, // a8 -> h8
-];
-
-/**
- * 
- * 1. Compute the magic for each tile, for each piece
- * 2. For each tile:
- *  Choose a random magic
- *  Get all the attack variations for that tile
- *  create idx: magic * variation >> 64 - tile bits
- *  check that there are no conflicts for each variation
- *  if none, generate attack set and store
- * 
- */
-pub fn find_magics() -> SlidingMagic {
-    // find rook magics
-    let rmagic: RookMagic = rook_magics();
-
-    // find bishop magics
-
-    return SlidingMagic {
-        rook_offsets: rmagic.offsets,
-        rook_magics: rmagic.magics,
-        rook_attacks: rmagic.attacks,
-    }
-}
-
-fn n_lower_bits(value: u64, mut n: u32) -> u64 {
-    if n >= 64 {
-        return u64::MAX;
-    }
-    let shift_mask = match u64::MAX.checked_shl(n) {
-        None => panic!("Could not shl {} bits", n),
-        Some(mask) => mask,
-    };
-    return value & !shift_mask
-}
-
-fn n_higher_bits(value: u64, mut n: u32) -> u64 {
-    if n == 0 {
-        return 0;
-    } else if n > 64 {
-        n = 64;
-    }
-    n = 64 - n;
-    let shift_mask = match u64::MAX.checked_shl(n) {
-        None => panic!("Could not shl {} bits", n),
-        Some(mask) => mask,
-    };
-    return value & shift_mask
-}
-
-fn idx_from_magic(magic: u64, occupancy: u64, tile_index: usize) -> usize {
-    let (multres, _): (u64, bool) = magic.overflowing_mul(occupancy);
-    let idx: usize = match multres.checked_shr(64 - ROOK_OFFSETS[tile_index] - DB_SIZE_FACTOR) {
-        None => panic!("Index shifting failed with shift of {}", tile_index),
-        Some(idx) => idx as usize,
-    };
-    return idx;
-}
-
-fn rook_magics_mib() {
-    let mut total = 0;
-    for i in ROOK_OFFSETS {
-        total += i;
-    }
-
-    total *= 64; // number of bits per db slot
-    total += total * DB_SIZE_FACTOR;
-    println!("Rook lookup tables using {total}b of memory, or {}MiB", total as f32 / 1048576.0);
-}
-
-fn rook_magics() -> RookMagic {
+pub fn rook_magics() -> RookMagic {
     let each_tile: [u64; 64] = Board::each_tile();
-
-    let mut rng = rand::thread_rng();
 
     let mut tile_attack_database: Vec<Vec<u64>> = vec![Vec::new(); 64];
     let mut tile_magic_database: [u64; 64] = [0; 64];
 
-    for (i, tile) in each_tile.iter().enumerate() {
-        println!("Working on {}...", i);
+    for (tile_index, tile) in each_tile.iter().enumerate() {
+        println!("Working on {}...", tile_index);
 
-        let vec_len: usize = match (2 as usize).checked_pow(ROOK_OFFSETS[i] + DB_SIZE_FACTOR) { // doubling avail size
-            None => panic!("Could not raise 2 pow {}", ROOK_OFFSETS[i] + DB_SIZE_FACTOR), 
+        let table_size: usize = match (2 as usize).checked_pow(ROOK_OFFSETS[tile_index] + DB_SIZE_FACTOR) { // doubling avail size
+            None => panic!("Could not raise 2 pow {}", ROOK_OFFSETS[tile_index] + DB_SIZE_FACTOR), 
             Some(len) => len,
         };
     
@@ -129,7 +47,7 @@ fn rook_magics() -> RookMagic {
             Err(e) => panic!("{:?}", e),
         };
 
-        let tile_occupancies: Vec<u64> = rook_all_occupancies(*tile, p_rank_mask, p_file_mask);
+        let tile_occupancies: Vec<u64> = rook_all_occupancies_for_tile(*tile, p_rank_mask, p_file_mask);
         let mut occupancy_attack_tuple: Vec<(u64, u64)> = Vec::new();
         let mut attack_hash_set: HashSet<u64> = HashSet::new();
 
@@ -141,51 +59,13 @@ fn rook_magics() -> RookMagic {
         }
 
         println!("Distinct attack sets: {}", attack_hash_set.len());
-        println!("Relevant occupancy DB size: {}", vec_len);
+        println!("Relevant occupancy DB size: {}", table_size);
 
         assert_eq!(occupancy_attack_tuple.len(), tile_occupancies.len());
 
-        let mut magic_found: bool = false;
-        let mut count = 0;
-        while !magic_found {
-            count += 1;
-
-            if count % 1000000 == 0 {
-                println!("Still searching for magic at {}", i);
-            }
-            magic_found = true;
-            let magic = rng.gen::<u64>();
-            let mut hashed_vec: Vec<u64> = vec![0; vec_len];
-
-            let mut clashcount = 0;
-            // if magic fails at any case, retry
-            for &(occ, attack) in &occupancy_attack_tuple {
-                let idx: usize = idx_from_magic(magic, occ, i);
-                // if count % 10000 == 0 {
-                //     println!("{}",idx);
-                // }
-                if hashed_vec[idx] != 0 && hashed_vec[idx] != attack {
-                    magic_found = false;
-                    // println!("Clash at i = {}, between ", clashcount);
-                    // print_moves(&attack);
-                    // print_moves(&hashed_vec[idx]);
-                    break;
-                }
-                clashcount += 1;
-
-                hashed_vec[idx] = attack;
-            }
-
-            if !magic_found {
-                continue;
-            }
-
-            tile_magic_database[i] = magic;
-            tile_attack_database[i] = hashed_vec;
-
-
-            println!("Magic found: {}", magic);
-        }
+        let (magic_number, magic_hash_table) = search_for_magic_without_conflicts(table_size, tile_index, occupancy_attack_tuple);
+        tile_magic_database[tile_index] = magic_number;
+        tile_attack_database[tile_index] = magic_hash_table;
     }
 
     // track how much memory it uses
@@ -268,9 +148,8 @@ fn rook_attacks(tile: u64, p_rank_mask: u64, p_file_mask: u64, occupancy: u64) -
     return attacks;
 }
 
-pub fn rook_all_occupancies(pos: u64, p_rank_mask: u64, p_file_mask: u64) -> Vec<u64> {
-    
-
+/// generate each possible combination of pieces that could be on file/rank of rook
+fn rook_all_occupancies_for_tile(pos: u64, p_rank_mask: u64, p_file_mask: u64) -> Vec<u64> {
     let mut rank_occupancies: Vec<u64> = Vec::new();
     rank_occupancies.push(0);
 
@@ -316,18 +195,30 @@ pub fn rook_all_occupancies(pos: u64, p_rank_mask: u64, p_file_mask: u64) -> Vec
     for &f in &file_occupancies {
         for &r in &rank_occupancies {
             final_occs.push(f | r);
+            // print_moves(&(f | r));
         }
     }
 
-    // assert_eq!(final_occs.len(), 4096);
     return final_occs;
 }
 
+
+/// Generate each possible combination of pieces that could be on diagonal of bishop
+// pub fn bishop_all_occupancies(pos: u64, p_rank_mask: u64, p_file_mask: u64) -> Vec<u64> {
+
+
+    
+// }
+
+
 #[cfg(test)]
 mod test {
-    use crate::magics::*;
-    use crate::game::Board;
+    use crate::game::{Board, Rank, File};
     use crate::test_util::board_string;
+
+    use crate::magic::rook_magics::*;
+    use crate::magic::constants::ROOK_OFFSETS;
+    use crate::utils::{mask_rank, mask_file};
 
     use std::collections::HashSet;
 
@@ -345,7 +236,7 @@ mod test {
                 Err(e) => panic!("{:?}", e),
             };
 
-            let rook_tile_occupancies = rook_all_occupancies(tile, p_rank_mask, p_file_mask);
+            let rook_tile_occupancies = rook_all_occupancies_for_tile(tile, p_rank_mask, p_file_mask);
 
             for occ in rook_tile_occupancies {
                 assert_eq!(
@@ -424,7 +315,7 @@ mod test {
 
             let mut attack_set: HashSet<u64> = HashSet::new();
 
-            let rook_occs = rook_all_occupancies(
+            let rook_occs = rook_all_occupancies_for_tile(
                 tile, p_rank.mask(), p_file.mask()
             );
 
@@ -516,8 +407,52 @@ mod test {
     }
 
     #[test]
-    fn test_generate_magic_nums() {
-        find_magics();
-    }
-}
+    fn test_rook_occupancy_sizes() {
+        for (i, tile) in Board::each_tile().iter().enumerate() {
+            let rank = match Rank::rank_from_tile(*tile){
+                Ok(rank) => rank.mask(),
+                Err(e) => panic!("{:?}", e),
+            };
+            let file = match File::file_from_tile(*tile) {
+                Ok(file) => file.mask(),
+                Err(e) => panic!("{:?}", e),
+            };
 
+            let occs = rook_all_occupancies_for_tile(*tile, rank, file);
+            assert_eq!(
+                occs.len(),
+                2_u32.pow(ROOK_OFFSETS[i]) as usize,
+                "Expected {} occupancies, but got {} for the tile\n{}",
+                2_u32.pow(ROOK_OFFSETS[i]), occs.len(), board_string(*tile)
+            )
+        }
+    }
+
+    #[test]
+    fn test_no_duplicate_rook_occupancies() {
+        for tile in Board::each_tile() {
+            let rank = match Rank::rank_from_tile(tile){
+                Ok(rank) => rank.mask(),
+                Err(e) => panic!("{:?}", e),
+            };
+            let file = match File::file_from_tile(tile) {
+                Ok(file) => file.mask(),
+                Err(e) => panic!("{:?}", e),
+            };
+
+            let occs = rook_all_occupancies_for_tile(tile, rank, file);
+            let occupancy_hashset: HashSet<u64> = HashSet::from_iter(occs.iter().cloned());
+            assert_eq!(
+                occs.len(),
+                occupancy_hashset.len(),
+                "Duplicate occupancy for tile{}\n",
+                board_string(tile)
+            )
+        }
+    }
+
+    // #[test]
+    // fn test_generate_magic_nums() {
+    //     find_magics();
+    // }
+}
